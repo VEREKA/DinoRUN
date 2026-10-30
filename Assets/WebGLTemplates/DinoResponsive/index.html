@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>{{{ PRODUCT_NAME }}}</title>
+  <style>
+    :root { --bg: #231f20; --fg: #f2f2f2; }
+    html, body {
+      margin: 0; height: 100%; overflow: hidden;
+      background: var(--bg); color: var(--fg);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #stage {
+      position: fixed; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    /* Canvas zawsze 16:9, wpisany w okno (letterbox) */
+    #unity-canvas {
+      width: min(100vw, calc(100vh * 16 / 9));
+      height: min(100vh, calc(100vw * 9 / 16));
+      display: block; background: var(--bg);
+      outline: none; touch-action: none;
+    }
+    #loader {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+      background: var(--bg); transition: opacity .3s ease;
+    }
+    #loader.hidden { opacity: 0; pointer-events: none; }
+    #loader-title { font-weight: 700; letter-spacing: .08em; text-transform: uppercase; font-size: 14px; }
+    #bar { width: min(60vw, 280px); height: 6px; background: #444; border-radius: 3px; overflow: hidden; }
+    #bar-fill { width: 0%; height: 100%; background: var(--fg); transition: width .15s linear; }
+    #error {
+      display: none; position: absolute; left: 16px; right: 16px; bottom: 16px;
+      padding: 10px 14px; border-radius: 6px; background: #ffe3e3; color: #8a1c1c; font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div id="stage">
+    <canvas id="unity-canvas" tabindex="-1"></canvas>
+    <div id="loader">
+      <div id="loader-title">{{{ PRODUCT_NAME }}}</div>
+      <div id="bar"><div id="bar-fill"></div></div>
+    </div>
+    <div id="error"></div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("unity-canvas");
+    const loader = document.getElementById("loader");
+    const fill = document.getElementById("bar-fill");
+    const errorBox = document.getElementById("error");
+
+    function showError(msg) {
+      errorBox.textContent = msg;
+      errorBox.style.display = "block";
+    }
+
+    const buildUrl = "Build";
+    const loaderUrl = buildUrl + "/{{{ LOADER_FILENAME }}}";
+    const config = {
+      arguments: [],
+      dataUrl: buildUrl + "/{{{ DATA_FILENAME }}}",
+      frameworkUrl: buildUrl + "/{{{ FRAMEWORK_FILENAME }}}",
+#if USE_THREADS
+      workerUrl: buildUrl + "/{{{ WORKER_FILENAME }}}",
+#endif
+#if USE_WASM
+      codeUrl: buildUrl + "/{{{ CODE_FILENAME }}}",
+#endif
+#if MEMORY_FILENAME
+      memoryUrl: buildUrl + "/{{{ MEMORY_FILENAME }}}",
+#endif
+#if SYMBOLS_FILENAME
+      symbolsUrl: buildUrl + "/{{{ SYMBOLS_FILENAME }}}",
+#endif
+      streamingAssetsUrl: "StreamingAssets",
+      companyName: {{{ JSON.stringify(COMPANY_NAME) }}},
+      productName: {{{ JSON.stringify(PRODUCT_NAME) }}},
+      productVersion: {{{ JSON.stringify(PRODUCT_VERSION) }}},
+      // Ogranicz rozdzielczość na ekranach Retina/telefonach = płynniej
+      devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2),
+      showBanner: (msg, type) => { if (type === "error") showError(msg); else console.warn(msg); }
+    };
+
+    // Spacja i strzałki nie przewijają strony
+    window.addEventListener("keydown", (e) => {
+      if ([" ", "ArrowUp", "ArrowDown"].includes(e.key)) e.preventDefault();
+    }, { passive: false });
+
+    // Klik/dotyk ustawia fokus klawiatury na grze
+    ["pointerdown", "touchstart"].forEach((ev) =>
+      canvas.addEventListener(ev, () => canvas.focus(), { passive: true })
+    );
+
+    const script = document.createElement("script");
+    script.src = loaderUrl;
+    script.onload = () => {
+      createUnityInstance(canvas, config, (progress) => {
+        fill.style.width = Math.round(progress * 100) + "%";
+      }).then(() => {
+        loader.classList.add("hidden");
+        canvas.focus();
+      }).catch((err) => showError("Nie udało się uruchomić gry: " + err));
+    };
+    script.onerror = () => showError("Nie znaleziono pliku loadera: " + loaderUrl);
+    document.body.appendChild(script);
+  </script>
+</body>
+</html>

@@ -72,6 +72,22 @@ public class MainMenu : MonoBehaviour
     private void OnEnable()
     {
         SceneManager.sceneLoaded += OnSceneLoaded;
+        SubscribeManagers();
+    }
+
+    private void OnDisable()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+        UnsubscribeManagers();
+    }
+
+    // Idempotentne: "-=" przed "+=" gwarantuje dokładnie jedną subskrypcję,
+    // nawet gdy wywołamy to z OnEnable i z OnSceneLoaded (managery mogą
+    // powstać dopiero po załadowaniu pierwszej sceny - ManagerBootstrapper).
+    private void SubscribeManagers()
+    {
+        UnsubscribeManagers();
+
         if (GameStateManager.Instance != null)
             GameStateManager.Instance.OnStateChanged += HandleStateChanged;
 
@@ -79,9 +95,8 @@ public class MainMenu : MonoBehaviour
             ScoreManager.Instance.OnScoreChanged += HandleScoreChanged;
     }
 
-    private void OnDisable()
+    private void UnsubscribeManagers()
     {
-        SceneManager.sceneLoaded -= OnSceneLoaded;
         if (GameStateManager.Instance != null)
             GameStateManager.Instance.OnStateChanged -= HandleStateChanged;
 
@@ -95,16 +110,12 @@ public class MainMenu : MonoBehaviour
         waitingForInput = true;
         ignoreInputUntil = Time.time + 0.15f;
 
+        SubscribeManagers();
+
         GameStateManager.Instance?.SetState(GameState.Menu);
 
         ScoreManager.Instance?.ResetScore();
         SpeedManager.Instance?.ResetSpeed();
-
-        if (GameStateManager.Instance != null)
-            GameStateManager.Instance.OnStateChanged += HandleStateChanged;
-
-        if (ScoreManager.Instance != null)
-            ScoreManager.Instance.OnScoreChanged += HandleScoreChanged;
 
         if (pressAnyKeyTxt != null) pressAnyKeyTxt.gameObject.SetActive(true);
         if (arrows != null) arrows.SetActive(true);

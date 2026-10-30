@@ -90,59 +90,48 @@ public class PlayerScript : MonoBehaviour
             return;
 
         // ----------------- PC (klawiatura) -----------------
-        if (Input.GetKeyDown(KeyCode.UpArrow) && isGrounded)
+        // Skok: strzałka w górę, W, spacja. Ślizg: strzałka w dół, S.
+        if (isGrounded && (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.W) || Input.GetKeyDown(KeyCode.Space)))
             JumpRequested = true;
 
-        if (Input.GetKeyDown(KeyCode.DownArrow) && isGrounded)
+        if (isGrounded && (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.S)))
             SlideRequested = true;
 
-        // ----------------- DOTYK + MYSZ -----------------
-
-        bool inputDown = false;
-        Vector2 inputPos = Vector2.zero;
-
-        // ------------------ Mysz ----------------------
-        if (Input.GetMouseButtonDown(0))
-        {
-            inputDown = true;
-            inputPos = Input.mousePosition;
-        }
-
-        // ------------------ Dotyk ---------------------
+        // ----------------- DOTYK -----------------
+        // Telefon: górna połowa ekranu = skok, dolna = ślizg.
+        // Dotyk sprawdzamy najpierw, bo Unity emuluje z niego też klik myszy.
         if (Input.touchCount > 0)
         {
             Touch touch = Input.GetTouch(0);
 
-            if (touch.phase == TouchPhase.Began)
+            if (touch.phase == TouchPhase.Began && isGrounded)
             {
-                inputDown = true;
-                inputPos = touch.position;
-            }
-        }
-
-        // --------------- Podzia� ekranu ----------------
-        if (inputDown)
-        {
-            float halfScreen = Screen.height * 0.5f;
-
-            if (inputPos.y > halfScreen)
-            {
-                if (isGrounded)
+                if (touch.position.y > Screen.height * 0.5f)
                     JumpRequested = true;
-            }
-            else
-            {
-                if (isGrounded)
+                else
                     SlideRequested = true;
             }
         }
+        // ----------------- MYSZ -----------------
+        // Desktop: lewy przycisk = skok, prawy = ślizg (bez dzielenia ekranu).
+        else
+        {
+            if (Input.GetMouseButtonDown(0) && isGrounded)
+                JumpRequested = true;
+
+            if (Input.GetMouseButtonDown(1) && isGrounded)
+                SlideRequested = true;
+        }
 
         // ----------------- WYNIK -----------------
+        // Jedno źródło prawdy: ScoreManager. UI odświeżane co 0,1 s.
         score += Time.deltaTime * scoreMultiplier;
 
         if (Time.time >= nextScoreUpdate)
         {
-            if (ScoreTxt != null)
+            if (ScoreManager.Instance != null)
+                ScoreManager.Instance.UpdateScore(score);
+            else if (ScoreTxt != null)
                 ScoreTxt.text = $"SCORE: {score:F0}";
             nextScoreUpdate = Time.time + 0.1f;
         }

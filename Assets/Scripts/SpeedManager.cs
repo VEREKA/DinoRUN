@@ -30,6 +30,10 @@ public class SpeedManager : MonoBehaviour
 
     private void Update()
     {
+        // Przyspieszamy tylko w trakcie gry - nie w menu, pauzie ani po Game Over.
+        if (GameStateManager.Instance != null && GameStateManager.Instance.State != GameState.Playing)
+            return;
+
         if (CurrentSpeed < maxSpeed)
         {
             CurrentSpeed += speedMultiplier * Time.deltaTime;
