@@ -20,6 +20,14 @@ public class MainMenu : MonoBehaviour
 
     private bool waitingForInput = false;
     private float ignoreInputUntil = 0f;
+    private GameStateManager stateManager;
+    private ScoreManager scoreManager;
+
+    private void Start()
+    {
+        if (Instance == this && livescoreTxt != null)
+            gameObject.AddComponent<PauseMenuUI>().Initialize(livescoreTxt.canvas, livescoreTxt.font);
+    }
 
     private void Awake()
     {
@@ -43,6 +51,8 @@ public class MainMenu : MonoBehaviour
 
     private void Update()
     {
+        if (Input.GetKeyDown(KeyCode.Escape))
+            GameStateManager.Instance?.TogglePause();
         if (!waitingForInput) return;
 
         if (Time.time < ignoreInputUntil) return;
@@ -71,40 +81,48 @@ public class MainMenu : MonoBehaviour
 
     private void OnEnable()
     {
-        SceneManager.sceneLoaded += OnSceneLoaded;
-        if (GameStateManager.Instance != null)
-            GameStateManager.Instance.OnStateChanged += HandleStateChanged;
+        if (Instance != this) return;
 
-        if (ScoreManager.Instance != null)
-            ScoreManager.Instance.OnScoreChanged += HandleScoreChanged;
+        SceneManager.sceneLoaded += OnSceneLoaded;
+        stateManager = GameStateManager.Instance;
+        scoreManager = ScoreManager.Instance;
+        if (stateManager != null)
+            stateManager.OnStateChanged += HandleStateChanged;
+
+        if (scoreManager != null)
+        {
+            scoreManager.OnScoreChanged += HandleScoreChanged;
+            HandleScoreChanged(scoreManager.CurrentScore);
+        }
     }
 
     private void OnDisable()
     {
         SceneManager.sceneLoaded -= OnSceneLoaded;
-        if (GameStateManager.Instance != null)
-            GameStateManager.Instance.OnStateChanged -= HandleStateChanged;
+        if (stateManager != null)
+            stateManager.OnStateChanged -= HandleStateChanged;
 
-        if (ScoreManager.Instance != null)
-            ScoreManager.Instance.OnScoreChanged -= HandleScoreChanged;
+        if (scoreManager != null)
+            scoreManager.OnScoreChanged -= HandleScoreChanged;
+        stateManager = null;
+        scoreManager = null;
+    }
+
+    private void OnDestroy()
+    {
+        if (Instance == this) Instance = null;
     }
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
+        if (mode != LoadSceneMode.Single) return;
+        GameStateManager.Instance?.SetState(GameState.Menu);
         if (scene.name != "GameScene") return;
         waitingForInput = true;
         ignoreInputUntil = Time.time + 0.15f;
 
-        GameStateManager.Instance?.SetState(GameState.Menu);
-
         ScoreManager.Instance?.ResetScore();
         SpeedManager.Instance?.ResetSpeed();
-
-        if (GameStateManager.Instance != null)
-            GameStateManager.Instance.OnStateChanged += HandleStateChanged;
-
-        if (ScoreManager.Instance != null)
-            ScoreManager.Instance.OnScoreChanged += HandleScoreChanged;
 
         if (pressAnyKeyTxt != null) pressAnyKeyTxt.gameObject.SetActive(true);
         if (arrows != null) arrows.SetActive(true);
@@ -136,6 +154,13 @@ public class MainMenu : MonoBehaviour
 
     private void HandleStateChanged(GameState state)
     {
+        if (state == GameState.Playing)
+        {
+            waitingForInput = false;
+            if (pressAnyKeyTxt != null) pressAnyKeyTxt.gameObject.SetActive(false);
+            if (arrows != null) arrows.SetActive(false);
+            if (instructions != null) instructions.SetActive(false);
+        }
         if (state == GameState.GameOver)
         {
             ShowTryAgain();

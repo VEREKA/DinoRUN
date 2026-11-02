@@ -3,6 +3,14 @@ using UnityEngine;
 public class GroundTile : MonoBehaviour
 {
     public float tileWidth = 30.09375f;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+    private GroundTileDebugState debugState;
+
+    private void Awake()
+    {
+        debugState = GetComponent<GroundTileDebugState>();
+    }
+#endif
 
     private void Update()
     {
@@ -11,6 +19,10 @@ public class GroundTile : MonoBehaviour
 
         float speed = SpeedManager.Instance != null ? SpeedManager.Instance.CurrentSpeed : 5f;
         transform.Translate(Vector2.left * speed * Time.deltaTime);
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        if (debugState != null && debugState.enableLogs) debugState.MaybeLog(speed, name);
+#endif
 
         if (transform.position.x < -tileWidth)
         {

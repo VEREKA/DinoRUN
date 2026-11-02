@@ -1,6 +1,6 @@
 using UnityEngine;
-using UnityEngine.UI;
-using TMPro;
+using UnityEngine.EventSystems;
+using System.Collections.Generic;
 
 public class PlayerScript : MonoBehaviour
 {
@@ -9,15 +9,12 @@ public class PlayerScript : MonoBehaviour
     public float JumpForce = 12f;
     [Tooltip("Duration of slide in seconds")]
     public float slideDuration = 0.4f;
+    [Tooltip("How long a jump pressed just before landing is remembered")]
+    [Min(0f)] public float jumpBufferDuration = 0.12f;
 
     [Header("Score")]
-    [Tooltip("UI text element displaying current score")]
-    public TMP_Text ScoreTxt;
     [Tooltip("Multiplier applied to score per second")]
     public float scoreMultiplier = 4f;
-
-    private float score = 0f;
-    private float nextScoreUpdate = 0f;
 
     private bool isGrounded = false;
     private bool isAlive = true;
@@ -29,13 +26,26 @@ public class PlayerScript : MonoBehaviour
     private CapsuleCollider2D col;
     private Vector2 originalColliderSize;
     private Vector2 slideColliderSize;
+    private Vector2 originalColliderOffset;
+    private float slideTimeRemaining;
     private Animator anim;
+    private GameStateManager stateManager;
+    private GameState previousState;
+    private float jumpBufferRemaining;
+    private readonly HashSet<Collider2D> groundContacts = new HashSet<Collider2D>();
+    private PlayerSlideVisuals visuals;
+
+    // Time until a jump can be followed by another grounded action.
+    public float JumpRecoveryTime => rb != null && Physics2D.gravity.y * rb.gravityScale < 0f
+        ? 2f * JumpForce / (rb.mass * -Physics2D.gravity.y * rb.gravityScale)
+        : 1f;
 
     private void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
         col = GetComponent<CapsuleCollider2D>();
-        anim = GetComponent<Animator>();
+        anim = GetComponentInChildren<Animator>();
+        visuals = GetComponentInChildren<PlayerSlideVisuals>();
 
         if (rb == null)
         {
@@ -43,6 +53,9 @@ public class PlayerScript : MonoBehaviour
             enabled = false;
             return;
         }
+
+        rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
+        rb.interpolation = RigidbodyInterpolation2D.Interpolate;
 
         if (col == null)
             Debug.LogWarning("PlayerScript: CapsuleCollider2D not found; sliding will be disabled.");
@@ -53,25 +66,47 @@ public class PlayerScript : MonoBehaviour
         if (col != null)
         {
             originalColliderSize = col.size;
+            originalColliderOffset = col.offset;
             slideColliderSize = new Vector2(col.size.x, col.size.y * 0.65f);
         }
 
-        if (GameStateManager.Instance != null)
-            GameStateManager.Instance.OnStateChanged += HandleStateChanged;
+    }
+
+    private void OnEnable()
+    {
+        stateManager = GameStateManager.Instance;
+        previousState = stateManager != null ? stateManager.State : GameState.Menu;
+        if (stateManager != null)
+            stateManager.OnStateChanged += HandleStateChanged;
+        if (ScoreManager.Instance != null)
+            ScoreManager.Instance.ScorePerSecond = scoreMultiplier;
     }
 
     private void OnDisable()
     {
-        if (GameStateManager.Instance != null)
-            GameStateManager.Instance.OnStateChanged -= HandleStateChanged;
+        if (stateManager != null)
+            stateManager.OnStateChanged -= HandleStateChanged;
+        stateManager = null;
+        JumpRequested = false;
+        jumpBufferRemaining = 0f;
+        SlideRequested = false;
+        groundContacts.Clear();
+        isGrounded = false;
+        stopSlide();
     }
 
     private void HandleStateChanged(GameState state)
     {
-        if (state == GameState.Playing)
+        bool resuming = previousState == GameState.Paused;
+        previousState = state;
+        if (state != GameState.Playing)
         {
-            score = 0f;
-            nextScoreUpdate = Time.time;
+            JumpRequested = false;
+            jumpBufferRemaining = 0f;
+            SlideRequested = false;
+        }
+        if (state == GameState.Playing && !resuming)
+        {
             isAlive = true;
             if (rb != null)
             {
@@ -90,8 +125,8 @@ public class PlayerScript : MonoBehaviour
             return;
 
         // ----------------- PC (klawiatura) -----------------
-        if (Input.GetKeyDown(KeyCode.UpArrow) && isGrounded)
-            JumpRequested = true;
+        if (Input.GetKeyDown(KeyCode.UpArrow))
+            RequestJump();
 
         if (Input.GetKeyDown(KeyCode.DownArrow) && isGrounded)
             SlideRequested = true;
@@ -102,7 +137,8 @@ public class PlayerScript : MonoBehaviour
         Vector2 inputPos = Vector2.zero;
 
         // ------------------ Mysz ----------------------
-        if (Input.GetMouseButtonDown(0))
+        if (Input.GetMouseButtonDown(0) && Input.touchCount == 0 &&
+            (EventSystem.current == null || !EventSystem.current.IsPointerOverGameObject()))
         {
             inputDown = true;
             inputPos = Input.mousePosition;
@@ -113,7 +149,8 @@ public class PlayerScript : MonoBehaviour
         {
             Touch touch = Input.GetTouch(0);
 
-            if (touch.phase == TouchPhase.Began)
+            if (touch.phase == TouchPhase.Began &&
+                (EventSystem.current == null || !EventSystem.current.IsPointerOverGameObject(touch.fingerId)))
             {
                 inputDown = true;
                 inputPos = touch.position;
@@ -127,8 +164,7 @@ public class PlayerScript : MonoBehaviour
 
             if (inputPos.y > halfScreen)
             {
-                if (isGrounded)
-                    JumpRequested = true;
+                RequestJump();
             }
             else
             {
@@ -137,29 +173,49 @@ public class PlayerScript : MonoBehaviour
             }
         }
 
-        // ----------------- WYNIK -----------------
-        score += Time.deltaTime * scoreMultiplier;
+    }
 
-        if (Time.time >= nextScoreUpdate)
-        {
-            if (ScoreTxt != null)
-                ScoreTxt.text = $"SCORE: {score:F0}";
-            nextScoreUpdate = Time.time + 0.1f;
-        }
+    public void RequestJump()
+    {
+        if (!isAlive || (stateManager != null && stateManager.State != GameState.Playing)) return;
+        JumpRequested = true;
+        jumpBufferRemaining = jumpBufferDuration;
     }
 
     private void FixedUpdate()
     {
-        if (JumpRequested)
+        if (!isAlive || (GameStateManager.Instance != null && GameStateManager.Instance.State != GameState.Playing))
+        {
+            JumpRequested = false;
+            jumpBufferRemaining = 0f;
+            SlideRequested = false;
+            return;
+        }
+
+        if (JumpRequested && isGrounded)
         {
             JumpRequested = false;
 
             rb.linearVelocity = new Vector2(rb.linearVelocity.x, 0f);
             rb.AddForce(Vector2.up * JumpForce, ForceMode2D.Impulse);
             isGrounded = false;
+            groundContacts.Clear();
+            jumpBufferRemaining = 0f;
 
             if (isSliding)
                 stopSlide();
+        }
+
+        if (JumpRequested)
+        {
+            jumpBufferRemaining -= Time.fixedDeltaTime;
+            if (jumpBufferRemaining <= 0f) JumpRequested = false;
+        }
+
+        if (isSliding)
+        {
+            slideTimeRemaining -= Time.fixedDeltaTime;
+            if (slideTimeRemaining <= 0f) stopSlide();
         }
 
         if (SlideRequested)
@@ -171,18 +227,19 @@ public class PlayerScript : MonoBehaviour
 
     private void startSlide()
     {
-        if (!isGrounded)
+        if (!isGrounded || isSliding || col == null)
             return;
 
         isSliding = true;
-        if (col != null)
-            col.size = slideColliderSize;
+        slideTimeRemaining = Mathf.Max(0f, slideDuration);
+        col.size = slideColliderSize;
+        // Keep the bottom of the collider in place when crouching.
+        col.offset = originalColliderOffset + Vector2.down * (originalColliderSize.y - slideColliderSize.y) * 0.5f;
 
         if (anim != null)
             anim.SetBool("isSliding", true);
+        if (visuals != null) visuals.SetSliding(true);
 
-        rb.linearVelocity = new Vector2(rb.linearVelocity.x, -4f);
-        Invoke(nameof(stopSlide), slideDuration);
     }
 
     private void stopSlide()
@@ -191,11 +248,16 @@ public class PlayerScript : MonoBehaviour
             return;
 
         isSliding = false;
+        slideTimeRemaining = 0f;
         if (col != null)
+        {
             col.size = originalColliderSize;
+            col.offset = originalColliderOffset;
+        }
 
         if (anim != null)
             anim.SetBool("isSliding", false);
+        if (visuals != null) visuals.SetSliding(false);
     }
 
     private void OnCollisionEnter2D(Collision2D collision)
@@ -203,33 +265,51 @@ public class PlayerScript : MonoBehaviour
         if (!isAlive)
             return;
 
-        if (collision.gameObject.CompareTag("ground"))
-        {
-            foreach (var contact in collision.contacts)
-            {
-                if (contact.normal.y > 0.5f)
-                {
-                    isGrounded = true;
-                    break;
-                }
-            }
-        }
+        UpdateGroundContact(collision);
 
         if (collision.gameObject.CompareTag("spike"))
             Die();
     }
 
+    private void OnCollisionStay2D(Collision2D collision)
+    {
+        if (isAlive) UpdateGroundContact(collision);
+    }
+
+    private void UpdateGroundContact(Collision2D collision)
+    {
+        if (!collision.gameObject.CompareTag("ground")) return;
+        bool supporting = false;
+        if (rb.linearVelocity.y <= 0.1f)
+        {
+            for (int i = 0; i < collision.contactCount; i++)
+                if (collision.GetContact(i).normal.y > 0.5f) { supporting = true; break; }
+        }
+        if (supporting) groundContacts.Add(collision.collider);
+        else groundContacts.Remove(collision.collider);
+        isGrounded = groundContacts.Count > 0;
+    }
+
+    private void OnCollisionExit2D(Collision2D collision)
+    {
+        groundContacts.Remove(collision.collider);
+        isGrounded = groundContacts.Count > 0;
+    }
+
     private void Die()
     {
         isAlive = false;
+        stopSlide();
+        JumpRequested = false;
+        jumpBufferRemaining = 0f;
+        SlideRequested = false;
 
         rb.linearVelocity = Vector2.zero;
         rb.bodyType = RigidbodyType2D.Kinematic;
-        ScoreManager.Instance?.UpdateScore(score);
         GameStateManager.Instance?.SetState(GameState.GameOver);
 
 #if UNITY_WEBGL && !UNITY_EDITOR
-        Application.ExternalCall("SetUnityScore", (int)score);
+        Application.ExternalCall("SetUnityScore", (int)(ScoreManager.Instance != null ? ScoreManager.Instance.CurrentScore : 0f));
 #endif
     }
 }

@@ -1,0 +1,5 @@
+{
+    "name": "DinoRun.RegressionTests",
+    "includePlatforms": ["Editor"],
+    "optionalUnityReferences": ["TestAssemblies"]
+}

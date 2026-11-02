@@ -2,7 +2,7 @@ using UnityEngine;
 
 public static class ManagerBootstrapper
 {
-    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void EnsureManagers()
     {
         // GameStateManager
@@ -37,4 +37,18 @@ public static class ManagerBootstrapper
             Object.DontDestroyOnLoad(go);
         }
     }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    private static void EnsureDebugHUD()
+    {
+        // Scene objects are available here; managers must be created earlier.
+        if (Object.FindFirstObjectByType<DebugHUD>() == null)
+        {
+            var hud = new GameObject("DebugHUD");
+            hud.AddComponent<DebugHUD>();
+            Object.DontDestroyOnLoad(hud);
+        }
+    }
+#endif
 }
