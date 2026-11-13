@@ -639,13 +639,17 @@ public class GameplayRegressionTests
         Call(score, "ResetScore");
         Play();
 
-        // Explicitly drive Update at a captured delta, not wall-clock time.
-        Time.captureDeltaTime = 0.02f;
+        // Time.captureDeltaTime does not guarantee that Time.deltaTime changes
+        // immediately in the same frame. Use the actual engine delta observed
+        // by ScoreManager.Update, and verify the points-per-second contract.
+        float elapsed = Time.deltaTime;
+        Assert.That(elapsed, Is.GreaterThan(0f));
+        Assert.That((float)Property(score, "ScorePerSecond"), Is.EqualTo(4f));
         float before = (float)Property(score, "CurrentScore");
         Call(score, "Update");
         Assert.That((float)Property(score, "CurrentScore") - before,
-            Is.EqualTo(0.08f).Within(0.0005f),
-            "4 points/second * 0.02 seconds must award 0.08 points.");
+            Is.EqualTo(4f * elapsed).Within(0.0005f),
+            "ScoreManager.Update must award exactly 4 points per second of actual Time.deltaTime.");
 
         Call(state, "SetState", Enum.Parse(GameType("GameState"), "Paused"));
         float paused = (float)Property(score, "CurrentScore");
