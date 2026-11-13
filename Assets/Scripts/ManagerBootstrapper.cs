@@ -36,6 +36,14 @@ public static class ManagerBootstrapper
             go.AddComponent<PoolManager>();
             Object.DontDestroyOnLoad(go);
         }
+
+        // WebGL bridge uses a stable GameObject name for the JavaScript callback.
+        if (DinoRunWebGLBridge.Instance == null)
+        {
+            var go = new GameObject("DinoRunWebGLBridge");
+            go.AddComponent<DinoRunWebGLBridge>();
+            Object.DontDestroyOnLoad(go);
+        }
     }
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
