@@ -66,7 +66,7 @@ Assets/
   Editor/DinoRunSceneValidator.cs       Local scene/prefab validation
   Tests/Editor/
     DinoRun.RegressionTests.asmdef   Unity test assembly
-    GameplayRegressionTests.cs       15 scene-based regression UnityTests
+    GameplayRegressionTests.cs       18 scene-based regression UnityTests
   Settings/                           URP and renderer assets
   Sprites/                            Game and UI sprites
 Packages/                              Unity dependencies
