@@ -66,7 +66,7 @@ Assets/
   Editor/DinoRunSceneValidator.cs       Local scene/prefab validation
   Tests/Editor/
     DinoRun.RegressionTests.asmdef   Unity test assembly
-    GameplayRegressionTests.cs       15 scene-based regression UnityTests
+    GameplayRegressionTests.cs       18 scene-based regression UnityTests
   Settings/                           URP and renderer assets
   Sprites/                            Game and UI sprites
 Packages/                              Unity dependencies
@@ -164,12 +164,12 @@ There is currently **no automated CI WebGL build or deployment**.
 
 ## Testing and continuous integration
 
-**Existing Unity tests:** `Assets/Tests/Editor/GameplayRegressionTests.cs` contains **15** `[UnityTest]` regression cases. They enter Play Mode from EditMode and check actual scenes, gameplay, physics, pooling, UI, pause behavior and resolution handling. Open **Window → General → Test Runner → EditMode → Run All** in Unity 6000.3.18f1. The project owner reported **15/15 passing**, clean compilation and a successful manual gameplay smoke test for PR #2. Rerun after code or scene changes.
+**Existing Unity tests:** `Assets/Tests/Editor/GameplayRegressionTests.cs` contains **18** `[UnityTest]` regression cases. They enter Play Mode from EditMode and check actual scenes, gameplay, physics, pooling, UI, pause behavior and resolution handling. Open **Window → General → Test Runner → EditMode → Run All** in Unity 6000.3.18f1. The project owner reported **15/15 passing before PR #5; three new contract tests have not yet been run**, clean compilation and a successful manual gameplay smoke test for PR #2. Rerun after code or scene changes.
 
-**GitHub Actions:** [read-only Python repository checks](.github/workflows/repository-checks.yml) run for PRs to `main`, validating Unity metadata GUIDs/companions, project JSON, test-assembly presence and both build scenes. They **do not** start Unity or run Unity's 15 tests. See [CI setup and limitations](docs/ci-setup.md).
+**GitHub Actions:** [read-only Python repository checks](.github/workflows/repository-checks.yml) run for PRs to `main`, validating Unity metadata GUIDs/companions, project JSON, test-assembly presence and both build scenes. They **do not** start Unity or run Unity's 18 tests. See [CI setup and limitations](docs/ci-setup.md).
 
 **Local Scene Validator:** **Tools → VEREKA → Validate DinoRUN** checks the serialized Menu/GameScene objects and Bird/Rock prefabs in Unity Editor. It is read-only and does not run in GitHub Actions. See [local validator instructions](docs/scene-validator.md); results must be verified in Unity 6000.3.18f1.
 
-**WebGL integration:** migrated to the Sorting_Game-compatible protocol, but **not yet tested against a real iframe/backend**; the checked-in host origin is deliberately empty. The 15 Unity tests and manual Editor play do not prove score persistence.
+**WebGL integration:** migrated to the Sorting_Game-compatible protocol, but **not yet tested against a real iframe/backend**; the checked-in host origin is deliberately empty. The expanded Unity test suite and manual Editor play do not prove score persistence.
 
 Test status and remaining checks are detailed in [docs/test-plan.md](docs/test-plan.md).

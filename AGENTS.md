@@ -45,8 +45,8 @@ These instructions apply to AI coding agents and contributors operating in this 
 
 1. Read the requested area and outline affected classes, scenes, prefabs and external integration.
 2. Keep gameplay changes isolated from documentation, CI and validator changes when practical.
-3. Add focused Unity tests for altered behavior; existing `Assets/Tests/Editor/GameplayRegressionTests.cs` has **15 `[UnityTest]` cases** that enter Play Mode. Avoid claiming they are pure, fast NUnit-only EditMode tests.
-4. Run the tests in Unity **6000.3.18f1** if an Editor is available; report the exact run results. Last owner-reported PR #2 baseline: **15/15 passing**, compilation clean and gameplay manually checked.
+3. Add focused Unity tests for altered behavior; existing `Assets/Tests/Editor/GameplayRegressionTests.cs` has **18 `[UnityTest]` cases** (15 previously verified, 3 new contract cases pending local verification) that enter Play Mode. Avoid claiming they are pure, fast NUnit-only EditMode tests.
+4. Run the tests in Unity **6000.3.18f1** if an Editor is available; report the exact run results. Last owner-reported PR #2 baseline: **15/15 passing before PR #5**; run all 18 after this change, compilation clean and gameplay manually checked.
 5. For scene or physics changes, manually verify menu, restart, jump buffering, slide collision/visuals, pause, speed/difficulty and aspect ratios.
 6. For bridge changes, verify WebGL iframe request/reply, wrong-origin/source rejection, missing ID and duplicate guard; verify actual backend storage separately. Editor tests cannot substitute for a browser integration test.
 7. Inspect the diff for GUID changes, generated content, host origins, sensitive data, unrelated code changes and Unity import side effects.

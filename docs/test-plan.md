@@ -6,13 +6,13 @@ This document separates **implemented tests**, **owner-reported results**, and *
 
 | Check | Implementation | Last reported result | Where it runs |
 | --- | --- | --- | --- |
-| Scene/gameplay regression tests | `Assets/Tests/Editor/GameplayRegressionTests.cs` — 15 `[UnityTest]` cases | **15/15 passed** locally for PR #2 (reported by repository owner) | Unity 6000.3.18f1 Test Runner, EditMode suite entering Play Mode |
+| Scene/gameplay regression tests | `Assets/Tests/Editor/GameplayRegressionTests.cs` — 18 `[UnityTest]` cases (15 existing + 3 new) | **15/15 passed** locally before PR #5; **3 additional contract tests await a local run** (expected total 18) | Unity 6000.3.18f1 Test Runner, EditMode suite entering Play Mode |
 | Compilation and gameplay smoke test | Owner opened and played the project | Clean compilation; gameplay working as expected for PR #2 | Unity Editor |
 | WebGL iframe handshake and result delivery | `DinoRunWebGLBridge.cs` and `.jslib` | **Not tested** with an actual host; `ParentOrigin` intentionally blank | WebGL build in an HTTPS iframe |
 | Repository structural checks | `.github/workflows/repository-checks.yml` and 17 Python self-tests | **Implemented in PR #3; GitHub run pending** | Python-only GitHub Actions |
 | Read-only scene/prefab validator | `Assets/Editor/DinoRunSceneValidator.cs` | **Added in PR #4; awaiting local Unity run** | Unity Editor → Tools → VEREKA → Validate DinoRUN |
 
-The 15 Unity cases run through the `EditMode` Test Runner but call `EnterPlayMode` and exercise scene lifecycle, physics and UI. They are **not** pure-C# arithmetic tests and are not executed by GitHub Actions.
+The Unity tests run through the `EditMode` Test Runner but call `EnterPlayMode` and exercise scene lifecycle, physics and UI. They are **not** pure-C# arithmetic tests and are not executed by GitHub Actions.
 
 ## Test environments
 
@@ -23,7 +23,7 @@ The 15 Unity cases run through the `EditMode` Test Runner but call `EnterPlayMod
 
 ## EditMode coverage and planned tests
 
-The following cases are implemented in `GameplayRegressionTests.cs`:
+The following cases are implemented in `GameplayRegressionTests.cs`. The last three were added in PR #5 and are **not yet locally verified**:
 
 | ID | Existing regression case | Validates |
 | --- | --- | --- |
@@ -42,13 +42,16 @@ The following cases are implemented in `GameplayRegressionTests.cs`:
 | E13 | `PauseButtonsWorkWithoutKeyboardAndFitPortraitScreens` | Pointer pause/resume and responsive layout |
 | E14 | `SlideClearsFlyingObstacleButStandingDoesNot` | Slide vs flying obstacle collision |
 | E15 | `SlideChangesOnlyArtworkAndRestoresTheRunPose` | Artwork/animation vs collider stability |
+| E16 (PR #5) | `SerializedPlayerTuningMatchesTemplateContract` | Literal scene tuning: jump 12, slide 0.4 s, jump buffer 0.12 s, score 4/s |
+| E17 (PR #5) | `ScoreAccrualUsesFourPointsPerSecondAndStopsOutsidePlaying` | Accrual at known delta, freeze on pause/end, score reset |
+| E18 (PR #5) | `DifficultyCurveHonorsFixedMilestonesSpeedCapAndReset` | Curve speed at score 0/300/600, viewport cap and reset |
 
 `GameplayRegressionTests.cs` also contains screenshot helper code which may write to `Logs/GameplayVisuals/` (or the `DINORUN_TEST_OUTPUT` directory). Do not commit screenshot output or other test artifacts.
 
 ### Suggested additional tests (not implemented)
 
-- P01: Validate the actual serialized GameScene references and numeric design constraints, rather than only C# initializers.
-- P02: Check the code-level score-per-second contract versus `PlayerScript.scoreMultiplier` and `ScoreManager.ScorePerSecond`; clarify which fields are authoring parameters versus fixed customer rules.
+- P01: Extend the Unity Scene Validator with further serialized references when the project changes. PR #5 adds regression assertions for the actual scene's four PlayerScript numeric values.
+- P02: Keep the newly tested **template tuning values** under review when adapting DinoRUN for customers. Deliberate changes require updating numeric-contract tests and documenting the reason.
 - P03: Test bridge no-origin/no-ID/duplicate behavior separately; JavaScript origin/source tests require a browser.
 - P04: Verify repeated gameplay runs with a persistent bridge **if the customer expects one score per replay**; currently the second result is suppressed until page reload.
 
@@ -74,7 +77,7 @@ Test with disposable host IDs. Never log real user identifiers, credentials or f
 ## Manual release checklist
 
 - [ ] Unity imports with no unexpected compiler errors or missing packages.
-- [ ] All 15 regression cases pass on the release branch.
+- [ ] All 18 regression cases pass on the release branch (15 previously confirmed, 3 new in PR #5).
 - [ ] Menu start → instructions → keyboard/touch start works.
 - [ ] Jump and buffered jump work; expired input does not jump late.
 - [ ] Ground rocks require jumping; flying birds can be avoided by sliding.
@@ -94,7 +97,7 @@ Test with disposable host IDs. Never log real user identifiers, credentials or f
 
 1. Maintain the Python-only GitHub Actions checks; keep `.meta` / scene integrity self-tests up to date.
 2. Keep the local Unity scene/prefab validator up to date with scene reference changes; review its output after modifying serialized assets.
-3. Add isolated scoring/difficulty contract tests if game-specific invariants become fixed for delivery.
+3. Maintain the new baseline numeric score/difficulty tests; add more isolated tests only when a specific customer requirement warrants them.
 4. Once a host exists, test actual WebGL messaging and design per-run result submission/retry policy if required.
 
 ## Evidence and reporting template

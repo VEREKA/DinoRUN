@@ -606,4 +606,102 @@ public class GameplayRegressionTests
         Assert.That(visuals.transform.localScale, Is.EqualTo(Vector3.one));
         Assert.That(player.GetComponent<CapsuleCollider2D>().size, Is.EqualTo(size));
     }
+
+    // Literal template requirements: an Inspector edit must not change the
+    // baseline tuning silently. Customer retuning requires updated tests.
+    [UnityTest]
+    public IEnumerator SerializedPlayerTuningMatchesTemplateContract()
+    {
+        OpenGame();
+        yield return new EnterPlayMode();
+        yield return null;
+
+        var player = Find("PlayerScript");
+        Assert.That((float)Read(player, "JumpForce"), Is.EqualTo(12f).Within(0.001f));
+        Assert.That((float)Read(player, "slideDuration"), Is.EqualTo(0.4f).Within(0.001f));
+        Assert.That((float)Read(player, "jumpBufferDuration"), Is.EqualTo(0.12f).Within(0.001f));
+        Assert.That((float)Read(player, "scoreMultiplier"), Is.EqualTo(4f).Within(0.001f));
+        Assert.That((float)Property(Manager("ScoreManager"), "ScorePerSecond"),
+            Is.EqualTo(4f).Within(0.001f),
+            "PlayerScript.OnEnable must apply the actual scene score multiplier.");
+    }
+
+    [UnityTest]
+    public IEnumerator ScoreAccrualUsesFourPointsPerSecondAndStopsOutsidePlaying()
+    {
+        OpenGame();
+        yield return new EnterPlayMode();
+        yield return null;
+
+        ((Behaviour)Find("SpikeGenerator")).enabled = false;
+        var score = Manager("ScoreManager");
+        var state = Manager("GameStateManager");
+        Call(score, "ResetScore");
+        Play();
+
+        // Time.captureDeltaTime does not guarantee that Time.deltaTime changes
+        // immediately in the same frame. Use the actual engine delta observed
+        // by ScoreManager.Update, and verify the points-per-second contract.
+        float elapsed = Time.deltaTime;
+        Assert.That(elapsed, Is.GreaterThan(0f));
+        Assert.That((float)Property(score, "ScorePerSecond"), Is.EqualTo(4f));
+        float before = (float)Property(score, "CurrentScore");
+        Call(score, "Update");
+        Assert.That((float)Property(score, "CurrentScore") - before,
+            Is.EqualTo(4f * elapsed).Within(0.0005f),
+            "ScoreManager.Update must award exactly 4 points per second of actual Time.deltaTime.");
+
+        Call(state, "SetState", Enum.Parse(GameType("GameState"), "Paused"));
+        float paused = (float)Property(score, "CurrentScore");
+        Call(score, "Update");
+        Assert.That((float)Property(score, "CurrentScore"), Is.EqualTo(paused));
+
+        Call(state, "SetState", Enum.Parse(GameType("GameState"), "GameOver"));
+        Call(score, "Update");
+        Assert.That((float)Property(score, "CurrentScore"), Is.EqualTo(paused));
+        Call(score, "ResetScore");
+        Assert.That((float)Property(score, "CurrentScore"), Is.Zero);
+    }
+
+    [UnityTest]
+    public IEnumerator DifficultyCurveHonorsFixedMilestonesSpeedCapAndReset()
+    {
+        OpenGame();
+        yield return new EnterPlayMode();
+        yield return null;
+
+        // The live spawner can otherwise update the viewport-dependent speed cap.
+        ((Behaviour)Find("SpikeGenerator")).enabled = false;
+        var score = Manager("ScoreManager");
+        var speed = Manager("SpeedManager");
+        Play();
+
+        Assert.That((float)Read(speed, "minSpeed"), Is.EqualTo(5f));
+        Assert.That((float)Read(speed, "maxSpeed"), Is.EqualTo(90f));
+        Assert.That((float)Read(speed, "progressToMax"), Is.EqualTo(600f));
+        Assert.That((bool)Read(speed, "useScoreForProgress"), Is.True);
+
+        Call(score, "UpdateScore", 0f);
+        Call(speed, "Update");
+        Assert.That((float)Property(speed, "CurrentSpeed"), Is.EqualTo(5f).Within(0.001f));
+
+        Call(score, "UpdateScore", 300f);
+        Call(speed, "Update");
+        Assert.That((float)Property(speed, "CurrentNormalized"), Is.EqualTo(0.5f).Within(0.001f));
+        Assert.That((float)Property(speed, "CurrentSpeed"),
+            Is.EqualTo(34.75f).Within(0.01f),
+            "Halfway through progress, the configured curve samples 0.35.");
+
+        Call(score, "UpdateScore", 600f);
+        Call(speed, "Update");
+        Assert.That((float)Property(speed, "CurrentSpeed"), Is.EqualTo(90f).Within(0.01f));
+
+        Call(speed, "SetGameplaySpeedLimit", 20f);
+        Assert.That((float)Property(speed, "CurrentSpeed"), Is.EqualTo(20f).Within(0.001f));
+
+        Call(speed, "ResetSpeed");
+        Assert.That((float)Property(speed, "CurrentSpeed"), Is.EqualTo(5f).Within(0.001f));
+        Assert.That(float.IsPositiveInfinity((float)Property(speed, "GameplaySpeedLimit")), Is.True);
+        Assert.That((float)Property(speed, "CurrentNormalized"), Is.Zero);
+    }
 }

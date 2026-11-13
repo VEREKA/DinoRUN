@@ -137,3 +137,10 @@ Eligible normal GameOver:
 The current template uses Unity singletons, events, scene-name strings and reflection-based regression tests. These are acceptable for an existing small game, but broad extraction into reusable VEREKA modules should be a separate reviewed change. Candidates: state/scoring, host bridge configuration, obstacle progression, and UI contracts.
 
 **Verification:** The owner reported **15/15** Unity regression tests passing, clean compilation and successful manual gameplay for PR #2. The WebGL iframe protocol and backend persistence remain unverified in a real host. Refer to `docs/test-plan.md` for the verification matrix.
+
+
+## Fixed template tuning protected by regression tests (PR #5)
+
+The scene's PlayerScript currently serializes **JumpForce 12**, **slideDuration 0.4 s**, **jumpBufferDuration 0.12 s** and **scoreMultiplier 4 points/s**. SpeedManager starts at **5**, reaches a maximum **90**, and reaches full progress at score **600** using the score-based AnimationCurve (curve value **0.35** at normalized progress **0.5**). These existing parameters are tested through the actual playing scene, with no gameplay implementation changes.
+
+The template is customizable: these are **baseline template contract tests**, not universal engine invariants. Deliberate customer retuning should update corresponding assertions and documentation. The new checks also cover score stopping on Pause/GameOver and the speed limit/reset. See `docs/test-plan.md`.
