@@ -33,8 +33,6 @@ The current bridge starts with **no trusted parent origin configured**. This is 
 - **Pause:** `GameStateManager` sets `Time.timeScale = 0` and restores it on resume. Touch-friendly `PauseMenuUI` is created at runtime.
 - **End of run:** `PlayerScript.Die()` changes state to `GameOver`, the game-over UI displays the result and `DinoRunWebGLBridge` attempts submission only when a trusted origin and host-provided user ID are available.
 
-**Important:** unlike Sorting_Game, DinoRUN currently does **not** invalidate results on browser blur/visibility loss. This behavior has not been added automatically.
-
 ## Repository layout
 
 ```text
