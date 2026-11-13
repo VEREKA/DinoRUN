@@ -1,0 +1,26 @@
+name: Unity Repository Checks (No Editor)
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  repository-checks:
+    name: Repository integrity (Python only)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          lfs: false
+      - name: Run validator self-tests
+        run: python3 -m unittest discover -s scripts/tests -v
+      - name: Check Unity repository structure
+        run: python3 scripts/validate_unity_repo.py .

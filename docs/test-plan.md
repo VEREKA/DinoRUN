@@ -9,7 +9,7 @@ This document separates **implemented tests**, **owner-reported results**, and *
 | Scene/gameplay regression tests | `Assets/Tests/Editor/GameplayRegressionTests.cs` — 15 `[UnityTest]` cases | **15/15 passed** locally for PR #2 (reported by repository owner) | Unity 6000.3.18f1 Test Runner, EditMode suite entering Play Mode |
 | Compilation and gameplay smoke test | Owner opened and played the project | Clean compilation; gameplay working as expected for PR #2 | Unity Editor |
 | WebGL iframe handshake and result delivery | `DinoRunWebGLBridge.cs` and `.jslib` | **Not tested** with an actual host; `ParentOrigin` intentionally blank | WebGL build in an HTTPS iframe |
-| Repository structural checks | Python-only GitHub Actions | **Not implemented yet** | Planned separate PR |
+| Repository structural checks | `.github/workflows/repository-checks.yml` and 17 Python self-tests | **Implemented in PR #3; GitHub run pending** | Python-only GitHub Actions |
 | Read-only scene/prefab validator | Unity Editor tool | **Not implemented yet** | Planned separate PR |
 
 The 15 Unity cases run through the `EditMode` Test Runner but call `EnterPlayMode` and exercise scene lifecycle, physics and UI. They are **not** pure-C# arithmetic tests and are not executed by GitHub Actions.
@@ -19,7 +19,7 @@ The 15 Unity cases run through the `EditMode` Test Runner but call `EnterPlayMod
 - **Unity Editor:** `6000.3.18f1` with packages from `Packages/manifest.json`. Run **Window → General → Test Runner → EditMode → Run All**. Tests that enter Play Mode can be slower and may change resolution/camera state.
 - **Local manual play:** test Menu and GameScene at desktop and narrow/portrait aspect ratios; use keyboard, mouse and touch where possible.
 - **WebGL:** build with WebGL Support installed. Serve from HTTP(S), embed in a trusted parent iframe and verify actual host-side messages. Browser security, session storage and backend receipt are beyond an Editor-only test.
-- **CI:** no workflow configured yet; do not present static lint/check results as Unity test results.
+- **CI:** Python-only workflow checks repository integrity, but not Unity compilation or runtime; see `docs/ci-setup.md`.
 
 ## EditMode coverage and planned tests
 
@@ -92,11 +92,10 @@ Test with disposable host IDs. Never log real user identifiers, credentials or f
 
 ## Future verification work (optional, separate PRs)
 
-1. Add Python-only GitHub Actions to validate `.meta` integrity, scene list, relevant JSON and required test files, **without needing a Unity license**.
-2. Investigate and resolve the currently unmatched `Assets/Settings/Build Profiles.meta` before strict metadata CI is enabled.
-3. Add a read-only Editor scene/prefab validator adapted to `Menu`, `GameScene`, Bird, Rock, Player, Canvas and generator references.
-4. Add isolated scoring/difficulty contract tests if game-specific invariants become fixed for delivery.
-5. Once a host exists, test actual WebGL messaging and design per-run result submission/retry policy if required.
+1. Maintain the Python-only GitHub Actions checks; keep `.meta` / scene integrity self-tests up to date.
+2. Add a read-only Editor scene/prefab validator adapted to `Menu`, `GameScene`, Bird, Rock, Player, Canvas and generator references.
+3. Add isolated scoring/difficulty contract tests if game-specific invariants become fixed for delivery.
+4. Once a host exists, test actual WebGL messaging and design per-run result submission/retry policy if required.
 
 ## Evidence and reporting template
 

@@ -73,6 +73,10 @@ ProjectSettings/                       Unity version and build scene list
 docs/architecture.md                   Component map and state/data flows
 docs/test-plan.md                      Test coverage and release checklist
 docs/webgl-integration.md              Host protocol and deployment QA
+docs/ci-setup.md                       License-free GitHub Actions checks
+scripts/validate_unity_repo.py          Read-only repository integrity validation
+scripts/tests/                        Python validator self-tests
+.github/workflows/                     PR-triggered Python CI
 AGENTS.md                              Coding-agent and contributor rules
 README.md                              Project setup and entry point
 ```
@@ -160,7 +164,7 @@ There is currently **no automated CI WebGL build or deployment**.
 
 **Existing Unity tests:** `Assets/Tests/Editor/GameplayRegressionTests.cs` contains **15** `[UnityTest]` regression cases. They enter Play Mode from EditMode and check actual scenes, gameplay, physics, pooling, UI, pause behavior and resolution handling. Open **Window → General → Test Runner → EditMode → Run All** in Unity 6000.3.18f1. The project owner reported **15/15 passing**, clean compilation and a successful manual gameplay smoke test for PR #2. Rerun after code or scene changes.
 
-**GitHub Actions:** not yet configured for this repository. A future Python-only structural checker will check the repository without launching Unity; it will **not** execute these Unity tests.
+**GitHub Actions:** [read-only Python repository checks](.github/workflows/repository-checks.yml) run for PRs to `main`, validating Unity metadata GUIDs/companions, project JSON, test-assembly presence and both build scenes. They **do not** start Unity or run Unity's 15 tests. See [CI setup and limitations](docs/ci-setup.md).
 
 **Local Scene Validator:** not yet implemented; planned as a separate PR. Do not treat its absence as evidence that scenes and prefab references are valid.
 

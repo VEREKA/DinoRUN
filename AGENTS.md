@@ -61,6 +61,7 @@ These instructions apply to AI coding agents and contributors operating in this 
 - UI: `Assets/Scripts/MainMenu.cs`, `PauseMenuUI.cs`, `RunnerCameraFraming.cs`.
 - WebGL: `Assets/Scripts/DinoRunWebGLBridge.cs`, `Assets/Plugins/WebGL/DinoRunWebGLBridge.jslib`.
 - Tests: `Assets/Tests/Editor/GameplayRegressionTests.cs`, `DinoRun.RegressionTests.asmdef`.
+- Python CI: `.github/workflows/repository-checks.yml`, `scripts/validate_unity_repo.py`, `scripts/tests/` (structural checks only; no Unity test execution).
 - Architecture: `docs/architecture.md`; test plan: `docs/test-plan.md`; host protocol: `docs/webgl-integration.md`.
 
-Keep framework extraction, new CI and read-only Unity scene validation in **separate scoped PRs**.
+Keep framework extraction and read-only Unity scene validation in **separate scoped PRs**. GitHub Actions is Python-only and cannot prove Unity compilation or gameplay correctness.
