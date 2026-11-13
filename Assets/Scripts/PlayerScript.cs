@@ -308,8 +308,7 @@ public class PlayerScript : MonoBehaviour
         rb.bodyType = RigidbodyType2D.Kinematic;
         GameStateManager.Instance?.SetState(GameState.GameOver);
 
-#if UNITY_WEBGL && !UNITY_EDITOR
-        Application.ExternalCall("SetUnityScore", (int)(ScoreManager.Instance != null ? ScoreManager.Instance.CurrentScore : 0f));
-#endif
+        int finalScore = (int)(ScoreManager.Instance != null ? ScoreManager.Instance.CurrentScore : 0f);
+        DinoRunWebGLBridge.Instance?.SendResult(finalScore);
     }
 }
