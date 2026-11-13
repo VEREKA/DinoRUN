@@ -63,6 +63,7 @@ Assets/
     RunnerCameraFraming.cs           Responsive camera positioning
     DinoRunWebGLBridge.cs            Trusted parent origin / result submission
     DebugHUD.cs                      Development diagnostics
+  Editor/DinoRunSceneValidator.cs       Local scene/prefab validation
   Tests/Editor/
     DinoRun.RegressionTests.asmdef   Unity test assembly
     GameplayRegressionTests.cs       15 scene-based regression UnityTests
@@ -74,6 +75,7 @@ docs/architecture.md                   Component map and state/data flows
 docs/test-plan.md                      Test coverage and release checklist
 docs/webgl-integration.md              Host protocol and deployment QA
 docs/ci-setup.md                       License-free GitHub Actions checks
+docs/scene-validator.md                Local Unity Editor validator
 scripts/validate_unity_repo.py          Read-only repository integrity validation
 scripts/tests/                        Python validator self-tests
 .github/workflows/                     PR-triggered Python CI
@@ -166,7 +168,7 @@ There is currently **no automated CI WebGL build or deployment**.
 
 **GitHub Actions:** [read-only Python repository checks](.github/workflows/repository-checks.yml) run for PRs to `main`, validating Unity metadata GUIDs/companions, project JSON, test-assembly presence and both build scenes. They **do not** start Unity or run Unity's 15 tests. See [CI setup and limitations](docs/ci-setup.md).
 
-**Local Scene Validator:** not yet implemented; planned as a separate PR. Do not treat its absence as evidence that scenes and prefab references are valid.
+**Local Scene Validator:** **Tools → VEREKA → Validate DinoRUN** checks the serialized Menu/GameScene objects and Bird/Rock prefabs in Unity Editor. It is read-only and does not run in GitHub Actions. See [local validator instructions](docs/scene-validator.md); results must be verified in Unity 6000.3.18f1.
 
 **WebGL integration:** migrated to the Sorting_Game-compatible protocol, but **not yet tested against a real iframe/backend**; the checked-in host origin is deliberately empty. The 15 Unity tests and manual Editor play do not prove score persistence.
 

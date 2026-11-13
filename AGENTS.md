@@ -62,6 +62,7 @@ These instructions apply to AI coding agents and contributors operating in this 
 - WebGL: `Assets/Scripts/DinoRunWebGLBridge.cs`, `Assets/Plugins/WebGL/DinoRunWebGLBridge.jslib`.
 - Tests: `Assets/Tests/Editor/GameplayRegressionTests.cs`, `DinoRun.RegressionTests.asmdef`.
 - Python CI: `.github/workflows/repository-checks.yml`, `scripts/validate_unity_repo.py`, `scripts/tests/` (structural checks only; no Unity test execution).
+- Local scene validator: `Assets/Editor/DinoRunSceneValidator.cs` (**Tools → VEREKA → Validate DinoRUN**; read-only Editor checks).
 - Architecture: `docs/architecture.md`; test plan: `docs/test-plan.md`; host protocol: `docs/webgl-integration.md`.
 
-Keep framework extraction and read-only Unity scene validation in **separate scoped PRs**. GitHub Actions is Python-only and cannot prove Unity compilation or gameplay correctness.
+Keep framework extraction and additional gameplay tests in **separate scoped PRs**. GitHub Actions is Python-only and cannot prove Unity compilation or gameplay correctness.

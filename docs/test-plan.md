@@ -10,7 +10,7 @@ This document separates **implemented tests**, **owner-reported results**, and *
 | Compilation and gameplay smoke test | Owner opened and played the project | Clean compilation; gameplay working as expected for PR #2 | Unity Editor |
 | WebGL iframe handshake and result delivery | `DinoRunWebGLBridge.cs` and `.jslib` | **Not tested** with an actual host; `ParentOrigin` intentionally blank | WebGL build in an HTTPS iframe |
 | Repository structural checks | `.github/workflows/repository-checks.yml` and 17 Python self-tests | **Implemented in PR #3; GitHub run pending** | Python-only GitHub Actions |
-| Read-only scene/prefab validator | Unity Editor tool | **Not implemented yet** | Planned separate PR |
+| Read-only scene/prefab validator | `Assets/Editor/DinoRunSceneValidator.cs` | **Added in PR #4; awaiting local Unity run** | Unity Editor → Tools → VEREKA → Validate DinoRUN |
 
 The 15 Unity cases run through the `EditMode` Test Runner but call `EnterPlayMode` and exercise scene lifecycle, physics and UI. They are **not** pure-C# arithmetic tests and are not executed by GitHub Actions.
 
@@ -93,7 +93,7 @@ Test with disposable host IDs. Never log real user identifiers, credentials or f
 ## Future verification work (optional, separate PRs)
 
 1. Maintain the Python-only GitHub Actions checks; keep `.meta` / scene integrity self-tests up to date.
-2. Add a read-only Editor scene/prefab validator adapted to `Menu`, `GameScene`, Bird, Rock, Player, Canvas and generator references.
+2. Keep the local Unity scene/prefab validator up to date with scene reference changes; review its output after modifying serialized assets.
 3. Add isolated scoring/difficulty contract tests if game-specific invariants become fixed for delivery.
 4. Once a host exists, test actual WebGL messaging and design per-run result submission/retry policy if required.
 
