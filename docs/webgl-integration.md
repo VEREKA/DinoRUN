@@ -1,22 +1,48 @@
 # DinoRUN — WebGL parent iframe integration
 
-This project uses the **same message contract as Sorting_Game**, adapted for DinoRUN. It replaces the deprecated `Application.ExternalCall("SetUnityScore", ...)` without importing Sorting_Game-specific scoring, session state or focus-invalidating behavior.
+This project uses the **same host message schema as Sorting_Game**, adapted for DinoRUN's runtime and scene structure. PR #2 replaces `Application.ExternalCall("SetUnityScore", ...)`; it does not import Sorting_Game's session state, score rules or browser-focus invalidation.
 
 ## Required configuration before deployment
 
-Open `Assets/Scripts/DinoRunWebGLBridge.cs` and set `ParentOrigin` to the exact **HTTPS origin** of the parent page, for example `https://games.example.com`. Do not include a path, query, trailing slash, or wildcard. The checked-in default is an empty string and intentionally disables messages. **Do not ship until you have configured and verified the intended host.**
+Open `Assets/Scripts/DinoRunWebGLBridge.cs` and set `ParentOrigin` to the exact HTTPS **parent-page origin**, for example `https://games.example.com`. This is a **code constant**, not an Inspector override. Do not include a path, query, trailing slash or wildcard. The checked-in default is empty and intentionally disables outbound messaging.
 
-The host iframe must also have an appropriate `src`, serve WebGL assets over HTTP(S), and implement the listener/response flow below.
+The host must embed the WebGL player in an iframe, serve build files via HTTP(S) and implement its own trusted-origin, user/session and backend authorization checks. **Do not ship a customer build until the intended parent origin is configured and tested.**
 
 ## Protocol
 
-1. The bridge requests the user ID after bootstrapping. Its `.jslib` sends `"get_user_id"` via `window.parent.postMessage("get_user_id", ParentOrigin)`.
-2. The host replies with `{user_id:"test-id"}`, or compatible plain string/number, using the **child iframe origin** as `targetOrigin`.
-3. The `.jslib` rejects messages not from the configured `event.origin` or `event.source !== window.parent`. It invokes `SendMessage("DinoRunWebGLBridge", "OnUserIdReceived", id)` for an accepted ID.
-4. A normal DinoRUN player death attempts one `{type:"unity_game_result", user_id:"test-id", score:42}` message using the same trusted `targetOrigin`.
+```text
+Unity ManagerBootstrapper
+   --> DinoRunWebGLBridge.Start()
+   --> DinoRunRequestUserId(ParentOrigin)
+   --> parent.postMessage("get_user_id", ParentOrigin)
+
+Parent (trusted HTTPS origin) -> iframe:
+   {user_id:"test-id"} OR compatible plain string/number
+   event.origin === ParentOrigin
+   event.source === window.parent
+   --> SendMessage("DinoRunWebGLBridge","OnUserIdReceived",id)
+
+On game-over collision:
+   PlayerScript.Die()
+   --> DinoRunWebGLBridge.SendResult((int)score)
+   --> parent.postMessage({type:"unity_game_result",user_id,score}, ParentOrigin)
+```
+
+### Current payload
+
+```json
+{
+  "type": "unity_game_result",
+  "user_id": "test-user-id",
+  "score": 120
+}
+```
+
+The score is the **truncated integer** `(int)CurrentScore`, not the rounded UI `F0` display. The `user_id` originates from the parent host and must not be logged. The host remains responsible for authenticating and validating both fields.
+
+### Host listener example (illustrative, not production auth)
 
 ```js
-// Example host listener only; real backend identity checks are still required.
 window.addEventListener("message", (event) => {
   if (event.origin !== TRUSTED_DINORUN_IFRAME_ORIGIN) return;
   if (event.source !== gameIframe.contentWindow) return;
@@ -27,7 +53,7 @@ window.addEventListener("message", (event) => {
       TRUSTED_DINORUN_IFRAME_ORIGIN
     );
   } else if (event.data?.type === "unity_game_result") {
-    // Validate session and score server-side; avoid duplicate submissions.
+    // Apply server-side authentication, session matching and score checks.
     submitToBackend(event.data);
   }
 });
@@ -35,20 +61,25 @@ window.addEventListener("message", (event) => {
 
 ## Behavior and limits
 
-- `DinoRunWebGLBridge` is created persistently in `ManagerBootstrapper` with a fixed name for JavaScript `SendMessage` callbacks. No serialized scene changes are needed.
-- The bridge requires both the trusted origin and a valid received ID. It does not log user IDs.
-- A result is marked as sent before invoking the WebGL function, preventing duplicates during one app session. It does not reset when gameplay restarts. A page refresh restarts the session.
-- The existing DinoRUN flow sends the **truncated integer** score, matching the old `(int)` cast; no rounding or scoring mechanics changed.
-- The Unity Editor cannot exercise real iframe messages. **The host must be tested in a WebGL build**.
-- The child has no acknowledgement/retry; `true` from `SendResult` is only eligibility/attempt, not proof of host receipt or stored result.
-- A standalone build without an iframe is intentionally not capable of host submission.
-- DinoRUN does **not** automatically invalidate runs when focus is lost. That behavior belonged to a different production game and is not added here.
+- The bridge is created persistently by `ManagerBootstrapper`, under the exact GameObject name `DinoRunWebGLBridge`, which JavaScript `SendMessage` requires.
+- Unconfigured or invalid `ParentOrigin` disables user ID requests and result emission. Standalone builds without a parent iframe do not participate in the handshake.
+- `.jslib` rejects messages unless both `event.origin` and `event.source` match the trusted parent.
+- The bridge stores the received ID locally and never logs the ID or complete payload.
+- `SendResult` refuses missing IDs and duplicate attempts, marking the result before calling native code.
+- **One result attempt per loaded page:** `resultSent` is not reset when the user chooses Try Again. If a host needs a score for each run, the bridge must be deliberately adapted with per-run identity and tests.
+- No transport confirmation, retry or backend acknowledgement exists. A `true` return means local eligibility/attempt only; a host or network failure can still lose the result.
+- The Editor cannot execute JSLib; game tests validate gameplay, not host delivery.
+- Browser blur does **not** invalidate DinoRUN results. This differs intentionally from Sorting_Game.
 
-## Manual QA before accepting this change
+## Manual QA before accepting a WebGL deployment
 
-1. Set a test trusted origin and build WebGL.
-2. Open in iframe, confirm `get_user_id` reaches the host and valid ID is received.
-3. Try a message from a different window and different origin; neither should be accepted.
-4. Die once and confirm the host receives one integer score; reload and repeat.
-5. Die without a valid ID and verify no result is received.
-6. Validate backend persistence and server-side identity/duplicate controls independently.
+1. Configure a temporary HTTPS parent origin for the build and serve it from a distinct origin in an iframe.
+2. Confirm the parent receives `get_user_id` and the child accepts a valid response.
+3. Attempt a response from a different origin and another window; neither should reach the game.
+4. End a run with a valid ID: observe one result message and compare the **truncated** score with the displayed value.
+5. End a run without a valid ID and ensure nothing is sent.
+6. End/restart within the same browser page, observe the current single-result limit and decide whether that meets the client brief.
+7. Inspect backend persistence, duplicate handling, authentication and error management independently.
+8. Keep test user IDs disposable; ensure browser/Unity logs do not expose identifiers.
+
+For the full testing matrix and release checklist see `docs/test-plan.md`.
